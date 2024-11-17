@@ -48,9 +48,9 @@ const BACKGROUND_PRESETS = {
 };
 
 const BASE_CONTEXT = {
-  product: "Create a professional product photography background that is",
-  lifestyle: "Generate a lifestyle scene background that is",
-  seasonal: "Design a seasonal themed environment that is"
+  product: "Create a clean, professional product photography background that is minimal, with a smooth and uniform color or subtle gradient. The background should emphasize the product by keeping distractions to a minimum, ensuring a polished and sophisticated look.",
+  lifestyle: "Generate a lifestyle scene background that is vibrant yet clean, with a simple setting that reflects modern living. The background should feel welcoming, with smooth gradients or neutral tones, designed to complement a variety of lifestyle elements, without overpowering them.",
+  seasonal: "Design a seasonal themed environment that is visually balanced, with subtle, clean design elements representing the current season. Whether it's soft colors for spring, warm tones for fall, or cool, muted colors for winter, the background should remain simple and elegant while evoking the spirit of the season."
 };
 
 const generateEnhancedPrompt = (
@@ -79,53 +79,18 @@ const ProductEnhancer = () => {
   const [selectedPreset, setSelectedPreset] = useState<keyof typeof BACKGROUND_PRESETS>('product');
   const [iterativeMode, setIterativeMode] = useState(false);
   const [userAPIKey, setUserAPIKey] = useState("");
-  const debouncedPrompt = useDebounce(backgroundPrompt, 300);
   const [generations, setGenerations] = useState<{ prompt: string; image: any }[]>([]);
   const [activeIndex, setActiveIndex] = useState<number>();
   const [isLoading, setIsLoading] = useState(false);
   const [generatedImage, setGeneratedImage] = useState("");
-
-  const { data: image, isFetching } = useQuery({
-    placeholderData: (previousData) => {
-      console.log('Using placeholder data:', previousData);
-      return previousData || { base64: '/image.png' };
-    },
-    queryKey: [debouncedPrompt, selectedPreset],
-    queryFn: async () => {
-      const enhancedPrompt = generateEnhancedPrompt(backgroundPrompt, selectedPreset);
-      console.log('Starting image generation with enhanced prompt:', enhancedPrompt);
-      
-      let res = await fetch("/api/generateImages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          prompt: enhancedPrompt, 
-          userAPIKey, 
-          iterativeMode 
-        }),
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error('Image generation failed:', errorText);
-        throw new Error(errorText);
-      }
-      
-      const data = await res.json();
-      console.log('Image generation successful');
-      return data;
-    },
-    enabled: !!debouncedPrompt.trim(),
-    staleTime: Infinity,
-    retry: false,
-  });
+  const [combinedImage, setCombinedImage] = useState<string | null>(null);
+  const debouncedPrompt = useDebounce(backgroundPrompt, 300);
 
   async function generateImage() {
-    if (!isSignedIn) {
-      return;
-    }
+    // if (!isSignedIn) {
+    //   return;
+    // }
+    console.log(isSignedIn);
 
     setIsLoading(true);
     const enhancedPrompt = generateEnhancedPrompt(backgroundPrompt, selectedPreset);
@@ -145,8 +110,16 @@ const ProductEnhancer = () => {
 
     if (res.ok) {
       const json = await res.json();
+
+      if (generatedImage && !generations.map((g) => g.image).includes(generatedImage)) {
+        console.log('Adding new generation to history');
+        setGenerations((images) => [...images, { prompt: backgroundPrompt, image: generatedImage }]);
+        setActiveIndex(generations.length);
+      }
+
       setGeneratedImage(`data:image/png;base64,${json.b64_json}`);
-      await user.reload();
+      // await user.reload();
+      // return `data:image/png;base64,${json.b64_json}`;
     } else if (res.headers.get("Content-Type") === "text/plain") {
       toast({
         variant: "destructive",
@@ -163,21 +136,6 @@ const ProductEnhancer = () => {
 
     setIsLoading(false);
   }
-
-  useEffect(() => {
-    console.log('Effect triggered:', { 
-      hasImage: !!image, 
-      generationsCount: generations.length,
-      activeIndex 
-    });
-    
-    if (image && !generations.map((g) => g.image).includes(image)) {
-      console.log('Adding new generation to history');
-      setGenerations((images) => [...images, { prompt: backgroundPrompt, image }]);
-      setActiveIndex(generations.length);
-      setProcessedImage(`data:image/jpeg;base64,${image.base64}`);
-    }
-  }, [generations, image, backgroundPrompt]);
 
   const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -225,41 +183,108 @@ const ProductEnhancer = () => {
 
   const processImage = useCallback(async () => {
     if (!originalImage || remainingCredits <= 0 || !backgroundPrompt.trim()) {
-      console.warn('Process image cancelled:', {
-        hasOriginalImage: !!originalImage,
-        remainingCredits,
-        hasPrompt: !!backgroundPrompt.trim()
-      });
       return;
     }
-
-    console.log('Starting image processing', {
-      prompt: backgroundPrompt
-    });
-    setLoading(true);
-    setError('');
-    setProcessing({ step: 'Removing background...', progress: 25 });
-
+  
     try {
-      console.log('Step 1: Removing background');
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      setLoading(true);
+      setProcessing({ step: 'Removing background...', progress: 25 });
+      
+      // Background removal step
+      const removedBgImage = await removeBackground(originalImage);
       
       setProcessing({ step: 'Generating new background...', progress: 50 });
-      console.log('Step 2: Generating new background with prompt:', backgroundPrompt);
-      
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Call generateImage here
+      const generatedBg = await generateImage();
+      console.log('Generated background:', generatedBg);
+      await combineImages();
       
       setProcessing({ step: 'Complete!', progress: 100 });
       setRemainingCredits(prev => prev - 1);
-      console.log('Image processing completed successfully');
-    } catch (err) {
-      console.error('Image processing failed:', err);
-      setError('Failed to process image. Please try again.');
+    } catch (error) {
+      if (error instanceof Error) {
+        setError('Failed to process image: ' + error.message);
+      } else {
+        setError('Failed to process image');
+      }
     } finally {
       setLoading(false);
-      console.log('Processing finished. Credits remaining:', remainingCredits - 1);
     }
-  }, [originalImage, remainingCredits, backgroundPrompt]);
+  }, [originalImage, backgroundPrompt, remainingCredits]);
+
+  // Add this function to combine images
+  const combineImages = useCallback(async () => {
+    console.log('Starting image combination process...');
+    console.time('combineImages');
+
+    if (!processedImage || !generatedImage) {
+      console.warn('Missing images:', { 
+        hasProcessedImage: !!processedImage, 
+        hasGeneratedImage: !!generatedImage 
+      });
+      toast({
+        title: "Error",
+        description: "Both processed and generated images are required",
+        variant: "destructive",
+      });
+      return;
+    }
+  
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      console.log('Canvas context created');
+      
+      if (!ctx) {
+        throw new Error('Could not get canvas context');
+      }
+  
+      // Create new images
+      const bgImage = new window.Image();
+      const fgImage = new window.Image();
+      
+      // Wait for both images to load
+      await new Promise<void>((resolve, reject) => {
+        bgImage.onload = () => {
+          console.log('Background image loaded:', {
+            width: bgImage.width,
+            height: bgImage.height
+          });
+          canvas.width = bgImage.width;
+          canvas.height = bgImage.height;
+          
+          ctx.drawImage(bgImage, 0, 0);
+          console.log('Background drawn to canvas');
+          
+          fgImage.onload = () => {
+            console.log('Foreground image loaded');
+            ctx.drawImage(fgImage, 0, 0, bgImage.width, bgImage.height);
+            console.log('Foreground drawn to canvas');
+            resolve();
+          };
+          fgImage.onerror = () => reject(new Error('Failed to load foreground image'));
+          fgImage.src = processedImage;
+        };
+        bgImage.onerror = () => reject(new Error('Failed to load background image'));
+        bgImage.src = generatedImage;
+      });
+  
+      const result = canvas.toDataURL('image/png');
+      console.log('Images combined successfully');
+      console.timeEnd('combineImages');
+      setCombinedImage(result);
+      return result;
+    } catch (error) {
+      console.error('Failed to combine images:', error);
+      toast({
+        title: "Error",
+        description: "Failed to combine images",
+        variant: "destructive",
+      });
+    }
+  }, [processedImage, generatedImage]);
+  
+
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
@@ -432,6 +457,14 @@ const ProductEnhancer = () => {
                       </Button>
                     )}
                   </div>
+                  <Button 
+                    onClick={combineImages}
+                    disabled={!processedImage || !generatedImage}
+                    className="mt-4"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download Combined Image
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -474,14 +507,14 @@ const ProductEnhancer = () => {
                       fill
                       priority
                       className="object-contain"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      sizes="max-w-full rounded-lg object-cover shadow-sm shadow-black"
                     />
                   </div>
                 </CardContent>
               </Card>
             )}
             
-            {(image || originalImage) && (
+            {(generatedImage || originalImage) && (
               <Card>
                 <CardHeader>
                   <CardTitle>AI Generated Background</CardTitle>
@@ -489,7 +522,7 @@ const ProductEnhancer = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="mt-4 flex w-full flex-col justify-center">
-                  {generations.map((generatedImage, i) => (
+                  {/* {generations.map((generatedImage, i) => (
                     <div key={i}>
                       <Image
                         placeholder="blur"
@@ -498,10 +531,22 @@ const ProductEnhancer = () => {
                         height={768}
                         src={`data:image/png;base64,${generatedImage.image.b64_json }`}
                         alt="AI Generated Background"
-                        className={`${isFetching ? "animate-pulse" : ""} max-w-full rounded-lg object-cover shadow-sm shadow-black`}
+                        className={`${isLoading ? "animate-pulse" : ""} max-w-full rounded-lg object-cover shadow-sm shadow-black`}
                       />
                     </div>
-                    ))}
+                    ))} */}
+                    <div>
+                      <Image
+                        placeholder="blur"
+                        blurDataURL={'/image.png'}
+                        width={1024}
+                        height={768}
+                        src={generatedImage || '/image.png'}
+                        alt="AI Generated Background"
+                        className={`${isLoading ? "animate-pulse" : ""} max-w-full rounded-lg object-cover shadow-sm shadow-black`}
+                      />
+                    </div>
+                    
 
                     <div className="mt-4 flex gap-4 overflow-x-scroll pb-4">
                       {generations.map((generation, i) => (
@@ -530,6 +575,40 @@ const ProductEnhancer = () => {
             )}
           </div>
         </div>
+
+        { combinedImage && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Combined Result</CardTitle>
+              <CardDescription>Final enhanced product image</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mt-4 flex w-full flex-col justify-center">
+                <Image
+                  placeholder="blur"
+                  blurDataURL={'/image.png'}
+                  width={1024}
+                  height={768}
+                  src={combinedImage || '/image.png'}
+                  alt="Combined Result"
+                  className="max-w-full rounded-lg object-cover shadow-sm shadow-black"
+                />
+                <Button 
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.download = 'enhanced-product.png';
+                    link.href = combinedImage || '/image/png';
+                    link.click();
+                  }}
+                  className="mt-4"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Result
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
