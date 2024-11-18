@@ -13,7 +13,7 @@ if (process.env.UPSTASH_REDIS_REST_URL) {
     // Allow 100 requests per day (~5-10 prompts)
     limiter: Ratelimit.fixedWindow(100, "1440 m"),
     analytics: true,
-    prefix: "blinkshot",
+    prefix: "prodapic",
   });
 }
 
