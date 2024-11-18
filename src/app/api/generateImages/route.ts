@@ -3,21 +3,17 @@ import { z } from "zod";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { headers } from "next/headers";
+import { clerkClient, currentUser } from "@clerk/nextjs/server";
 
 let ratelimit: Ratelimit | undefined;
 
-// Add rate limiting if Upstash API keys are set, otherwise skip
-if (process.env.UPSTASH_REDIS_REST_URL) {
-  ratelimit = new Ratelimit({
-    redis: Redis.fromEnv(),
-    // Allow 100 requests per day (~5-10 prompts)
-    limiter: Ratelimit.fixedWindow(100, "1440 m"),
-    analytics: true,
-    prefix: "prodapic",
-  });
-}
-
 export async function POST(req: Request) {
+  const user = await currentUser();
+
+  if (!user) {
+    return new Response("", { status: 404 });
+  }
+
   let json = await req.json();
   let { prompt, userAPIKey, iterativeMode } = z
     .object({
@@ -37,6 +33,17 @@ export async function POST(req: Request) {
     };
   }
 
+  // Add rate limiting if Upstash API keys are set, otherwise skip
+  if (process.env.UPSTASH_REDIS_REST_URL) {
+    ratelimit = new Ratelimit({
+      redis: Redis.fromEnv(),
+      // Allow 100 requests per day (~5-10 prompts)
+      limiter: Ratelimit.fixedWindow(3, "60 d"),
+      analytics: true,
+      prefix: "prodapic",
+    });
+  }
+
   const client = new Together(options);
 
   if (userAPIKey) {
@@ -52,6 +59,26 @@ export async function POST(req: Request) {
         "No requests left. Please add your own API key or try again in 24h.",
         {
           status: 429,
+        },
+      );
+    }
+  }
+
+  if (ratelimit) {
+    const identifier = user.id;
+    const { success, remaining } = await ratelimit.limit(identifier);
+    (await clerkClient()).users.updateUserMetadata(user.id, {
+      unsafeMetadata: {
+        remaining,
+      },
+    });
+
+    if (!success) {
+      return new Response(
+        "You've used up all your credits.",
+        {
+          status: 429,
+          headers: { "Content-Type": "text/plain" },
         },
       );
     }

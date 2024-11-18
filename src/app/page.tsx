@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import Image from "next/image";
-import { useUser } from '@clerk/nextjs';
+import { SignInButton, useUser } from "@clerk/nextjs";
 import { Upload, RefreshCw, Download, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useDebounce } from "@uidotdev/usehooks";
 import { removeBackground } from '@imgly/background-removal';
 import { toast } from "@/hooks/use-toast";
+import { motion } from "framer-motion";
 
 const BACKGROUND_PRESETS = {
   product: {
@@ -89,9 +90,9 @@ const ProductEnhancer = () => {
   const debouncedPrompt = useDebounce(backgroundPrompt, 300);
 
   async function generateImage() {
-    // if (!isSignedIn) {
-    //   return;
-    // }
+    if (!isSignedIn) {
+      return;
+    }
     console.log(isSignedIn);
 
     const enhancedPrompt = generateEnhancedPrompt(backgroundPrompt, selectedPreset);
@@ -113,7 +114,7 @@ const ProductEnhancer = () => {
       const json = await res.json();
       
       setGeneratedImage(`data:image/png;base64,${json.b64_json}`);
-      // await user.reload();
+      await user.reload();
     } else if (res.headers.get("Content-Type") === "text/plain") {
       toast({
         variant: "destructive",
@@ -313,44 +314,77 @@ const ProductEnhancer = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Upload Section */}
+          {/* Main Upload Section */}
           <Card>
             <CardHeader>
               <CardTitle>Original Image</CardTitle>
               <CardDescription>Upload your product photo</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col items-center gap-4">
-                {originalImage ? (
-                  <div className="relative w-full h-64">
-                    <Image
-                      src={originalImage}
-                      alt="Original product"
-                      fill
-                      priority
-                      className={`${loading ? "animate-pulse" : ""} max-w-full rounded-lg object-contain shadow-sm shadow-black`}
-                      sizes="(max-width: 768px) 100vw, 50vw"
-                    />
-                  </div>
-                ) : (
-                  <label className="w-full h-64 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors">
-                    <div className="text-center">
-                      <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                      <p className="mt-2 text-sm text-gray-600">Click to upload or drag and drop</p>
+              <div className="relative"> {/* Added wrapper for overlay positioning */}
+                <div className="flex flex-col items-center gap-4">
+                  {originalImage ? (
+                    <div className="relative w-full h-64">
+                      <Image
+                        src={originalImage}
+                        alt="Original product"
+                        fill
+                        priority
+                        className={`${loading ? "animate-pulse" : ""} max-w-full rounded-lg object-contain shadow-sm shadow-black`}
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                      />
                     </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                    />
-                  </label>
+                  ) : (
+                    <label className="w-full h-64 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors">
+                      <div className="text-center">
+                        <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                        <p className="mt-2 text-sm text-gray-600">Click to upload or drag and drop</p>
+                      </div>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {/* Authentication Overlay - Covers entire upload section */}
+                {isLoaded && !isSignedIn && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 rounded-lg z-50"
+                  >
+                    <div className="rounded-lg bg-gray-200 p-6 text-gray-900 max-w-sm w-full mx-4">
+                      <p className="text-lg font-medium text-center">
+                        Create a free account to enhance your product photos:
+                      </p>
+                      <div className="mt-6">
+                        <SignInButton
+                          mode="modal"
+                          signUpForceRedirectUrl={window.location.href}
+                          forceRedirectUrl={window.location.href}
+                        >
+                          <Button
+                            size="lg"
+                            className="w-full text-base font-semibold bg-[#0078D7] hover:bg-[#0078D7]/90 text-white"
+                          >
+                            Sign in
+                          </Button>
+                        </SignInButton>
+                      </div>
+                    </div>
+                  </motion.div>
                 )}
+
                 {!processedImage && originalImage && (
                   <p className="text-gray-500 text-sm italic mt-2 text-center">
                     Waiting for image to process...
                   </p>
                 )}
+                
                 {error && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
@@ -374,11 +408,11 @@ const ProductEnhancer = () => {
               <div className="flex flex-col items-center gap-4">
                 <div className="relative w-full h-64 bg-gray-50 rounded-lg">
                   <Image
-                    src={combinedImage || '/image.png'}
+                    src={combinedImage || processedImage || '/image.png'}
                     alt="Generated background"
                     fill
                     priority
-                    className={`${loading ? "animate-pulse" : ""} max-w-full rounded-lg object-cover shadow-sm shadow-black`}
+                    className={`${loading ? "animate-pulse" : ""} max-w-full rounded-lg object-contain shadow-sm shadow-black`}
                     sizes="(max-width: 768px) 100vw, 50vw"
                   />
                   {loading && (
