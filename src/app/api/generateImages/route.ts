@@ -14,17 +14,16 @@ export async function POST(req: Request) {
     return new Response("", { status: 404 });
   }
 
-  let json = await req.json();
-  let { prompt, userAPIKey, iterativeMode } = z
+  const json = await req.json();
+  const { prompt, userAPIKey } = z
     .object({
       prompt: z.string(),
-      iterativeMode: z.boolean(),
       userAPIKey: z.string().optional(),
     })
     .parse(json);
 
   // Add observability if a Helicone key is specified, otherwise skip
-  let options: ConstructorParameters<typeof Together>[0] = {};
+  const options: ConstructorParameters<typeof Together>[0] = {};
   if (process.env.HELICONE_API_KEY) {
     options.baseURL = "https://together.helicone.ai/v1";
     options.defaultHeaders = {
@@ -91,7 +90,6 @@ export async function POST(req: Request) {
       model: "black-forest-labs/FLUX.1-schnell",
       width: 1024,
       height: 768,
-      seed: iterativeMode ? 123 : undefined,
       steps: 3,
       // @ts-expect-error - this is not typed in the API
       response_format: "base64",

@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
-import { useDebounce } from "@uidotdev/usehooks";
 import { removeBackground } from '@imgly/background-removal';
 import { toast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
@@ -82,14 +81,23 @@ const ProductEnhancer = () => {
   const [processing, setProcessing] = useState({ step: '', progress: 0 });
   const [backgroundPrompt, setBackgroundPrompt] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<keyof typeof BACKGROUND_PRESETS>('product');
-  const [iterativeMode, setIterativeMode] = useState(false);
-  const [userAPIKey, setUserAPIKey] = useState("");
   const [generatedImage, setGeneratedImage] = useState("");
   const [combinedImage, setCombinedImage] = useState<string | null>(null);
   const [hasCombined, setHasCombined] = useState(false);
-  const debouncedPrompt = useDebounce(backgroundPrompt, 300);
+  const [userAPIKey, setUserAPIKey] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("userAPIKey") || "";
+    }
+    return "";
+  });
 
-  async function generateImage() {
+  const handleAPIKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setUserAPIKey(newValue);
+    localStorage.setItem("userAPIKey", newValue);
+  };
+
+  const generateImage = useCallback(async () => {
     if (!isSignedIn) {
       return;
     }
@@ -106,13 +114,11 @@ const ProductEnhancer = () => {
       body: JSON.stringify({ 
         prompt: enhancedPrompt, 
         userAPIKey, 
-        iterativeMode 
       }),
     });
 
     if (res.ok) {
       const json = await res.json();
-      
       setGeneratedImage(`data:image/png;base64,${json.b64_json}`);
       await user.reload();
     } else if (res.headers.get("Content-Type") === "text/plain") {
@@ -128,7 +134,7 @@ const ProductEnhancer = () => {
         description: `There was a problem processing your request: ${res.statusText}`,
       });
     }
-  }
+  }, [backgroundPrompt, selectedPreset, userAPIKey, user, isSignedIn]);
 
   const handleImageUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -173,7 +179,7 @@ const ProductEnhancer = () => {
 
       reader.readAsDataURL(file);
     }
-  }, []);
+  }, [processedImage]);
 
   // Add this function to combine images
   const combineImages = useCallback(async () => {
@@ -285,7 +291,7 @@ const ProductEnhancer = () => {
     } finally {
       setLoading(false);
     }
-  }, [originalImage, backgroundPrompt, remainingCredits, generatedImage, processedImage]);
+  }, [originalImage, backgroundPrompt, remainingCredits, generatedImage, generateImage]);
 
   useEffect(() => {
     console.log('Processed Image:', processedImage);
@@ -296,14 +302,11 @@ const ProductEnhancer = () => {
     if (processedImage && generatedImage && !hasCombined) {
       combineImages();
     }
-  }, [processedImage, generatedImage, hasCombined]);
-
-  // Reset the combination status if either image changes
-  useEffect(() => {
+    // Reset the combination status if either image changes
     if (processedImage || generatedImage) {
       setHasCombined(false); // Reset the flag if either image changes
     }
-  }, [processedImage, generatedImage]);
+  }, [processedImage, generatedImage, hasCombined, combineImages]);
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
@@ -311,6 +314,25 @@ const ProductEnhancer = () => {
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">AI Product Photo Enhancer</h1>
           <p className="text-gray-600">Transform your product photos with AI-generated backgrounds</p>
+        </div>
+
+        {/* API Key Section */}
+        <div className="mb-6">
+          <label
+            htmlFor="api-key"
+            className="mb-2 block text-xs font-bold uppercase text-[#F3F3F3]"
+          >
+            TOGETHER API KEY
+            <span className="ml-2 text-xs uppercase text-[#6F6F6F]">
+              [OPTIONAL]
+            </span>
+          </label>
+          <Input
+            value={userAPIKey}
+            onChange={handleAPIKeyChange}
+            placeholder="API Key"
+            type="password"
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
