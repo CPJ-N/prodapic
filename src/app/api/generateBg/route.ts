@@ -33,10 +33,9 @@ export async function POST(req: Request) {
   }
 
   // Add rate limiting if Upstash API keys are set, otherwise skip
-  if (process.env.UPSTASH_REDIS_REST_URL) {
+  if (process.env.UPSTASH_REDIS_REST_URL && !userAPIKey) {
     ratelimit = new Ratelimit({
       redis: Redis.fromEnv(),
-      // Allow 100 requests per day (~5-10 prompts)
       limiter: Ratelimit.fixedWindow(3, "60 d"),
       analytics: true,
       prefix: "prodapic",

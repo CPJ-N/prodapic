@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { removeBackground } from '@imgly/background-removal';
 import { toast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import Footer from '@/components/ui/Footer';
 
 const BACKGROUND_PRESETS = {
   product: {
@@ -77,7 +78,7 @@ const ProductEnhancer = () => {
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [remainingCredits, setRemainingCredits] = useState(3);
+  // const [remainingCredits, setRemainingCredits] = useState(3);
   const [processing, setProcessing] = useState({ step: '', progress: 0 });
   const [backgroundPrompt, setBackgroundPrompt] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<keyof typeof BACKGROUND_PRESETS>('product');
@@ -97,7 +98,7 @@ const ProductEnhancer = () => {
     localStorage.setItem("userAPIKey", newValue);
   };
 
-  const generateImage = useCallback(async () => {
+  const generateBg = useCallback(async () => {
     if (!isSignedIn) {
       return;
     }
@@ -106,7 +107,7 @@ const ProductEnhancer = () => {
     const enhancedPrompt = generateEnhancedPrompt(backgroundPrompt, selectedPreset);
     console.log('Starting image generation with enhanced prompt:', enhancedPrompt);
       
-    const res = await fetch("/api/generateImages", {
+    const res = await fetch("/api/generateBg", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -117,22 +118,36 @@ const ProductEnhancer = () => {
       }),
     });
 
-    if (res.ok) {
-      const json = await res.json();
-      setGeneratedImage(`data:image/png;base64,${json.b64_json}`);
-      await user.reload();
-    } else if (res.headers.get("Content-Type") === "text/plain") {
-      toast({
-        variant: "destructive",
-        title: res.statusText,
-        description: await res.text(),
-      });
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Whoops!",
-        description: `There was a problem processing your request: ${res.statusText}`,
-      });
+    try{
+      if (res.ok) {
+        const json = await res.json();
+        setGeneratedImage(`data:image/png;base64,${json.b64_json}`);
+        await user.reload();
+        return `data:image/png;base64,${json.b64_json}`
+      } else if (res.headers.get("Content-Type") === "text/plain") {
+        toast({
+          variant: "destructive",
+          title: res.statusText,
+          description: await res.text(),
+        });
+        setError('Failed to generate background: ' + res.statusText);
+        return ''
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Whoops!",
+          description: `There was a problem processing your request: ${res.statusText}`,
+        });
+        setError( `There was a problem processing your request: ${res.statusText}`);
+        return ''
+      }
+    } catch (error) {
+      console.error('Failed to generate background:', error);
+      if (error instanceof Error) {
+        setError('Failed to generate background: ' + error.message);
+      } else {
+        setError('Failed to generate background');
+      }
     }
   }, [backgroundPrompt, selectedPreset, userAPIKey, user, isSignedIn]);
 
@@ -178,14 +193,14 @@ const ProductEnhancer = () => {
       };
 
       reader.readAsDataURL(file);
+
+      setHasCombined(false); // Reset the flag when a new image is uploaded
     }
   }, [processedImage]);
 
   // Add this function to combine images
   const combineImages = useCallback(async () => {
     console.log('Starting image combination process...');
-    console.log('Processed Image:', processedImage);
-    console.log('Generated Image:', generatedImage);
 
     if (!processedImage || !generatedImage) {
       console.warn('Missing images:', { 
@@ -256,14 +271,14 @@ const ProductEnhancer = () => {
   }, [processedImage, generatedImage]);
 
   const processImage = useCallback(async () => {
-    if (!originalImage || remainingCredits <= 0 || !backgroundPrompt.trim()) {
-      console.log('Process cancelled:', { 
-        hasOriginalImage: !!originalImage, 
-        remainingCredits, 
-        hasPrompt: !!backgroundPrompt.trim() 
-      });
-      return;
-    }
+    // if (!originalImage || remainingCredits <= 0 || !backgroundPrompt.trim()) {
+    //   console.log('Process cancelled:', { 
+    //     hasOriginalImage: !!originalImage, 
+    //     remainingCredits, 
+    //     hasPrompt: !!backgroundPrompt.trim() 
+    //   });
+    //   return;
+    // }
   
     try {
       setLoading(true);
@@ -274,13 +289,13 @@ const ProductEnhancer = () => {
 
       // Step 2: Generate background
       setProcessing({ step: 'Generating new background...', progress: 50 });
-      await generateImage()
+      await generateBg()
       console.log('Background Generated', generatedImage)
         // Step 3: Combine images
       setProcessing({ step: '', progress: 75 });
 
       setProcessing({ step: 'Complete!', progress: 100 });
-      setRemainingCredits(prev => prev - 1);
+      // setRemainingCredits(prev => prev - 1);
     } catch (error) {
       console.error('Process failed:', error);
       if (error instanceof Error) {
@@ -291,28 +306,31 @@ const ProductEnhancer = () => {
     } finally {
       setLoading(false);
     }
-  }, [originalImage, backgroundPrompt, remainingCredits, generatedImage, generateImage]);
-
-  useEffect(() => {
-    console.log('Processed Image:', processedImage);
-  }, [processedImage]);
+  }, [originalImage, backgroundPrompt, generatedImage, generateBg]);
 
   useEffect(() => {
     // Only call combineImages if both images are available and not combined yet
     if (processedImage && generatedImage && !hasCombined) {
       combineImages();
     }
-    // Reset the combination status if either image changes
-    if (processedImage || generatedImage) {
-      setHasCombined(false); // Reset the flag if either image changes
-    }
+
+    console.log(window.location.href)
   }, [processedImage, generatedImage, hasCombined, combineImages]);
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
+      <div className="flex justify-center mb-8">
+        <Image
+          src="/prodapic-logo-cropped-no-bg.png"
+          alt="Logo"
+          width={400}
+          height={200}
+          className="object-contain"
+        />
+      </div>
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">AI Product Photo Enhancer</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">AI Product Photo Enhancer</h1>
           <p className="text-gray-600">Transform your product photos with AI-generated backgrounds</p>
         </div>
 
@@ -387,14 +405,6 @@ const ProductEnhancer = () => {
                     Waiting for image to process...
                   </p>
                 )}
-                
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
 
                 {/* API Key Section */}
                 <div className="p-4 mt-20">
@@ -441,7 +451,7 @@ const ProductEnhancer = () => {
                     alt="Generated background"
                     fill
                     priority
-                    className={`${loading ? "animate-pulse" : ""} max-w-full rounded-lg object-contain shadow-sm shadow-black`}
+                    className={`${loading ? "animate-pulse" : ""} max-w-full rounded-lg object-cover shadow-sm shadow-black`}
                     sizes="(max-width: 768px) 100vw, 50vw"
                   />
                   {loading && (
@@ -514,7 +524,7 @@ const ProductEnhancer = () => {
                   <div className="flex gap-2 w-full">
                     <Button
                       onClick={processImage}
-                      disabled={!originalImage || loading || remainingCredits <= 0 || !backgroundPrompt.trim() || !processedImage}
+                      disabled={!originalImage || loading || !backgroundPrompt.trim() || !processedImage} //|| remainingCredits <= 0
                       className="flex-1"
                       style={{ backgroundColor: '#0078D7' }}
                     >
@@ -552,13 +562,13 @@ const ProductEnhancer = () => {
         {/* Credits and Alerts */}
         <div className="mt-6 space-y-6">
           {/* Credits Alert */}
-          <Alert variant={remainingCredits <= 1 ? "destructive" : "default"}>
+          {/* <Alert variant={remainingCredits <= 1 ? "destructive" : "default"}>
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Credits Remaining</AlertTitle>
             <AlertDescription>
               You have {remainingCredits} background generation{remainingCredits !== 1 ? 's' : ''} remaining this month.
             </AlertDescription>
-          </Alert>
+          </Alert> */}
 
           {/* Error Alert */}
           {error && (
@@ -576,6 +586,23 @@ const ProductEnhancer = () => {
                 <CardHeader>
                   <CardTitle>Background Removed</CardTitle>
                   <CardDescription>Original image with background removed</CardDescription>
+                    {processedImage && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          console.log('Starting image download');
+                          const link = document.createElement('a');
+                          link.href = processedImage;
+                          link.download = 'removed-bg.jpg';
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          console.log('Image download initiated');
+                        }}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    )}
                 </CardHeader>
                 <CardContent>
                   <div className="relative w-full h-64 bg-gray-50 rounded-lg overflow-hidden">
@@ -597,6 +624,23 @@ const ProductEnhancer = () => {
                 <CardHeader>
                   <CardTitle>AI Generated Background</CardTitle>
                   <CardDescription>Generated using Together AI</CardDescription>
+                  {generatedImage && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        console.log('Starting image download');
+                        const link = document.createElement('a');
+                        link.href = generatedImage;
+                        link.download = 'generated-bg.jpg';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        console.log('Image download initiated');
+                      }}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="mt-4 flex w-full flex-col justify-center">
@@ -618,6 +662,7 @@ const ProductEnhancer = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };
