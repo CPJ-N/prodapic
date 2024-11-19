@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Here’s the updated README with the revised list of environment variables:
+
+---
+
+# ProdaPic - AI Product Photo Enhancer
+
+This is a web application that uses AI to enhance product photos by removing backgrounds and generating new professional backgrounds. Built with Next.js 15, Clerk Auth, and Together AI.
+
+![alt text](<public/Screenshot 2024-11-12 234034.png>)
+
+## Features
+
+- 🖼️ **AI-powered background removal**: Automatically removes the background of uploaded images using `@imgly/background-removal`.
+- 🎨 **Professional background generation**: Generate stunning product, lifestyle, or seasonal backgrounds using Together AI's inference API.
+- 🔄 **Real-time image processing**: Provides instant feedback and results.
+- 🎯 **Preset suggestions**: Offers curated background presets for various categories, including product, lifestyle, and seasonal themes.
+- 👤 **User authentication**: Seamless authentication powered by Clerk.
+- 📊 **API usage tracking**: Monitored with `@helicone_ai` for observability.
+- 💳 **Bring your own API key support**: Users can optionally provide their own Together AI keys.
+- 📉 **Rate limiting**: Enforced via Upstash Redis, allowing users up to 3 background generations per month.
+
+## Tech Stack
+
+- **Frontend Framework**: Next.js with TypeScript
+- **Styling**: Tailwind CSS
+- **UI Components**: Shadcn
+- **Authentication**: @ClerkDev
+- **Rate Limiting**: @Upstash Redis
+- **AI Observability**: @Helicone_ai
+- **Analytics**: @PlausibleHQ
+- **Background Removal**: @imgly/background-removal
+- **Background Generation**: Together AI API
 
 ## Getting Started
 
-First, run the development server:
+### Installation
+
+First, clone the repository and install dependencies:
+
+```bash
+git clone https://github.com/CPJ-N/prodapic.git
+cd prodapic
+npm install
+```
+
+### Running the Development Server
+
+Start the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit [http://localhost:3000](http://localhost:3000) in your browser to use the app locally.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Set up your environment variables by creating a `.env.local` file with the following content:
 
-## Learn More
+```bash
+UPSTASH_REDIS_REST_URL=your_upstash_redis_url
+UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
+TOGETHER_API_KEY=your_together_api_key
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+CLERK_SECRET_KEY=your_clerk_secret_key
+HELICONE_API_KEY=your_helicone_api_key
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+To deploy the app, push your changes to your GitHub repository and link it to [Vercel](https://vercel.com). Vercel will handle automatic builds and deployments.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Let me know if you'd like to refine it further!
