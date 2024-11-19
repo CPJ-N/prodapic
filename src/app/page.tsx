@@ -316,25 +316,6 @@ const ProductEnhancer = () => {
           <p className="text-gray-600">Transform your product photos with AI-generated backgrounds</p>
         </div>
 
-        {/* API Key Section */}
-        <div className="mb-6">
-          <label
-            htmlFor="api-key"
-            className="mb-2 block text-xs font-bold uppercase text-[#F3F3F3]"
-          >
-            TOGETHER API KEY
-            <span className="ml-2 text-xs uppercase text-[#6F6F6F]">
-              [OPTIONAL]
-            </span>
-          </label>
-          <Input
-            value={userAPIKey}
-            onChange={handleAPIKeyChange}
-            placeholder="API Key"
-            type="password"
-          />
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Main Upload Section */}
           <Card>
@@ -414,6 +395,32 @@ const ProductEnhancer = () => {
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
+
+                {/* API Key Section */}
+                <div className="p-4 mt-20">
+                <Card>
+                <CardHeader>
+                  <CardTitle>
+                    TOGETHER API KEY
+                    <span className="ml-2 text-xs uppercase text-[#6F6F6F]">
+                      [OPTIONAL]
+                    </span>
+                  </CardTitle>
+                  
+                    <CardDescription>
+                      Please enter your API key from Together.ai to use this tool. No rate limiting with your own API key!
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                  <Input
+                    value={userAPIKey}
+                    onChange={handleAPIKeyChange}
+                    placeholder="API Key"
+                    type="password"
+                  />
+                  </CardContent>
+                  </Card>
+                </div>
               </div>
             </CardContent>
           </Card>
