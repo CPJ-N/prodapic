@@ -8,7 +8,6 @@ export default async function middleware(
   evt: NextFetchEvent,
 ) {
   const { country } = geolocation(req)
-  const ip = ipAddress(req)
   // Check for Russian traffic first as there's too much spam from Russia
   if (country === "RU") {
     return new NextResponse("Access Denied", { status: 403 });

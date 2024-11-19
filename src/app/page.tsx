@@ -306,7 +306,7 @@ const ProductEnhancer = () => {
     } finally {
       setLoading(false);
     }
-  }, [originalImage, backgroundPrompt, generatedImage, generateBg]);
+  }, [ generatedImage, generateBg]);
 
   useEffect(() => {
     // Only call combineImages if both images are available and not combined yet
