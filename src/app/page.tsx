@@ -78,7 +78,6 @@ const ProductEnhancer = () => {
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  // const [remainingCredits, setRemainingCredits] = useState(3);
   const [processing, setProcessing] = useState({ step: '', progress: 0 });
   const [backgroundPrompt, setBackgroundPrompt] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<keyof typeof BACKGROUND_PRESETS>('product');
@@ -123,6 +122,7 @@ const ProductEnhancer = () => {
         const json = await res.json();
         setGeneratedImage(`data:image/png;base64,${json.b64_json}`);
         await user.reload();
+        setHasCombined(false);
         return `data:image/png;base64,${json.b64_json}`
       } else if (res.headers.get("Content-Type") === "text/plain") {
         toast({
@@ -214,7 +214,7 @@ const ProductEnhancer = () => {
       });
       return;
     }
-  
+
     try {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -223,7 +223,7 @@ const ProductEnhancer = () => {
       if (!ctx) {
         throw new Error('Could not get canvas context');
       }
-  
+
       // Create new images
       const bgImage = new window.Image();
       const fgImage = new window.Image();
@@ -235,28 +235,55 @@ const ProductEnhancer = () => {
             width: bgImage.width,
             height: bgImage.height
           });
+
+          // Set canvas dimensions to match the background image
           canvas.width = bgImage.width;
           canvas.height = bgImage.height;
-          
-          ctx.drawImage(bgImage, 0, 0);
+
+          // Draw background to cover the entire canvas
+          ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
           console.log('Background drawn to canvas');
-          
+
           fgImage.onload = () => {
-            console.log('Foreground image loaded');
-            ctx.drawImage(fgImage, 0, 0, bgImage.width, bgImage.height);
+            console.log('Foreground image loaded:', {
+              width: fgImage.width,
+              height: fgImage.height
+            });
+
+            // Calculate foreground image dimensions to contain it within the canvas
+            const fgAspect = fgImage.width / fgImage.height;
+            const canvasAspect = canvas.width / canvas.height;
+
+            let fgWidth, fgHeight;
+            if (fgAspect > canvasAspect) {
+              // Foreground is wider relative to canvas
+              fgWidth = canvas.width * 0.5; // Adjust scaling factor as needed
+              fgHeight = fgWidth / fgAspect;
+            } else {
+              // Foreground is taller relative to canvas
+              fgHeight = canvas.height * 0.5; // Adjust scaling factor as needed
+              fgWidth = fgHeight * fgAspect;
+            }
+
+            // Center the foreground image on the canvas
+            const fgX = (canvas.width - fgWidth) / 2;
+            const fgY = (canvas.height - fgHeight) / 2;
+
+            ctx.drawImage(fgImage, fgX, fgY, fgWidth, fgHeight);
             console.log('Foreground drawn to canvas');
             resolve();
           };
+
           fgImage.onerror = () => reject(new Error('Failed to load foreground image'));
           fgImage.src = processedImage;
         };
+
         bgImage.onerror = () => reject(new Error('Failed to load background image'));
         bgImage.src = generatedImage;
       });
-  
+
       const result = canvas.toDataURL('image/png');
       console.log('Images combined successfully');
-      console.log('Image combination completed');
       setHasCombined(true); // Set the flag to true after combining
       setCombinedImage(result);
       return result;
@@ -270,15 +297,8 @@ const ProductEnhancer = () => {
     }
   }, [processedImage, generatedImage]);
 
+
   const processImage = useCallback(async () => {
-    // if (!originalImage || remainingCredits <= 0 || !backgroundPrompt.trim()) {
-    //   console.log('Process cancelled:', { 
-    //     hasOriginalImage: !!originalImage, 
-    //     remainingCredits, 
-    //     hasPrompt: !!backgroundPrompt.trim() 
-    //   });
-    //   return;
-    // }
   
     try {
       setLoading(true);
@@ -559,17 +579,9 @@ const ProductEnhancer = () => {
           </Card>
         </div>
 
-        {/* Credits and Alerts */}
+        {/* Alerts */}
         <div className="mt-6 space-y-6">
-          {/* Credits Alert */}
-          {/* <Alert variant={remainingCredits <= 1 ? "destructive" : "default"}>
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Credits Remaining</AlertTitle>
-            <AlertDescription>
-              You have {remainingCredits} background generation{remainingCredits !== 1 ? 's' : ''} remaining this month.
-            </AlertDescription>
-          </Alert> */}
-
+          
           {/* Error Alert */}
           {error && (
             <Alert variant="destructive" className="mt-4">
