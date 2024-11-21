@@ -18,7 +18,7 @@ const Footer = () => (
     </div>
     <div className="mb-2 flex space-x-3 md:mb-0">
       <a
-        href="https://github.com/CPJ-N/propic"
+        href="https://github.com/CPJ-N/prodapic"
         className="flex items-center rounded border border-gray-300 px-2 py-1 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
       >
         <Image src={GithubSVG} alt="Twitter" className="mr-1 h-5 w-5" />

@@ -27,7 +27,6 @@ This is a web application that uses AI to enhance product photos by removing bac
 - **Authentication**: @ClerkDev
 - **Rate Limiting**: @Upstash Redis
 - **AI Observability**: @Helicone_ai
-- **Analytics**: @PlausibleHQ
 - **Background Removal**: @imgly/background-removal
 - **Background Generation**: Together AI API
 
