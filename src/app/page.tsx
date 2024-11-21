@@ -84,6 +84,7 @@ const ProductEnhancer = () => {
   const [generatedImage, setGeneratedImage] = useState("");
   const [combinedImage, setCombinedImage] = useState<string | null>(null);
   const [hasCombined, setHasCombined] = useState(false);
+  const [remainingCredits, setRemainingCredits] = useState(3);
   const [userAPIKey, setUserAPIKey] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("userAPIKey") || "";
@@ -335,7 +336,9 @@ const ProductEnhancer = () => {
     }
 
     console.log(window.location.href)
-  }, [processedImage, generatedImage, hasCombined, combineImages]);
+    console.log(`Credits Remaining: ${user?.unsafeMetadata.remaining ?? 3}`)
+    setRemainingCredits(user?.unsafeMetadata.remaining as number ?? 3);
+  }, [processedImage, generatedImage, hasCombined, combineImages, remainingCredits, user]);
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
@@ -544,7 +547,7 @@ const ProductEnhancer = () => {
                   <div className="flex gap-2 w-full">
                     <Button
                       onClick={processImage}
-                      disabled={!originalImage || loading || !backgroundPrompt.trim() || !processedImage} //|| remainingCredits <= 0
+                      disabled={!originalImage || loading || !backgroundPrompt.trim() || !processedImage || remainingCredits <= 1}
                       className="flex-1"
                       style={{ backgroundColor: '#0078D7' }}
                     >
@@ -581,6 +584,16 @@ const ProductEnhancer = () => {
 
         {/* Alerts */}
         <div className="mt-6 space-y-6">
+
+          {/* Credits Alert */}
+          <Alert variant={ remainingCredits <= 1 ? "destructive" : "default"}>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Credits Remaining</AlertTitle>
+            <AlertDescription>
+              You have {remainingCredits <= 1 ? 'no': `${remainingCredits - 1}`} background generation{(user?.unsafeMetadata.remaining ?? 3) !== 1 ? 's' : ''} remaining this month.
+            </AlertDescription>
+          </Alert>
+
           
           {/* Error Alert */}
           {error && (
