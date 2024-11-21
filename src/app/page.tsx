@@ -335,6 +335,7 @@ const ProductEnhancer = () => {
     }
 
     console.log(window.location.href)
+    console.log(`Credits Remaining: ${user?.unsafeMetadata.remaining}`)
   }, [processedImage, generatedImage, hasCombined, combineImages]);
 
   return (
@@ -581,6 +582,16 @@ const ProductEnhancer = () => {
 
         {/* Alerts */}
         <div className="mt-6 space-y-6">
+
+          {/* Credits Alert */}
+          <Alert variant={ user?.unsafeMetadata.remaining ?? 3 <= 1 ? "destructive" : "default"}>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Credits Remaining</AlertTitle>
+            <AlertDescription>
+              You have {`${user?.unsafeMetadata.remaining ?? 3}`} background generation{(user?.unsafeMetadata.remaining ?? 3) !== 1 ? 's' : ''} remaining this month.
+            </AlertDescription>
+          </Alert>
+
           
           {/* Error Alert */}
           {error && (
